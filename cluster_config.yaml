@@ -1,0 +1,10 @@
+__default__:
+        account: nfbellis
+        nodes: 1
+        partition: express
+        time: 01:00:00 # time limit for each job
+        ntasks: 6 #Request n cores be allocated per node
+        cpus-per-task: 1
+        mem-per-cpu: 4G
+        output: smtest.out
+        error: smtest.err
