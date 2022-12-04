@@ -3,8 +3,29 @@ __default__:
         nodes: 1
         partition: express
         time: 01:00:00 # time limit for each job
-        ntasks: 6 #Request n cores be allocated per node
+        ntasks: 1 #Request n cores be allocated per node
         cpus-per-task: 1
         mem-per-cpu: 4G
         output: smtest.out
         error: smtest.err
+
+cutadapt_3:
+        cpus-per-task: 8
+
+cutadapt_5:
+        cpus-per-task: 8
+
+star_align:
+        cpus-per-task: 8
+
+samtools_to_bam:
+        cpus-per-task: 8
+
+samtools_sort:
+        cpus-per-task: 8
+
+samtools_index:
+        cpus-per-task: 8
+
+fqtrim_collapse:
+        mem-per-cpu: 10G
