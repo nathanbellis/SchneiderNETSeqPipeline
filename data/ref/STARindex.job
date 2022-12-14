@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --partition=short
+#SBATCH --job-name=starindex
+#SBATCH --error=starindex.err
+#SBATCH --output=starindex.out
+#SBATCH --ntasks=1
+#SBATCH --time=4:00:00
+#SBATCH --cpus-per-task=12
+#SBATCH --mem-per-cpu=4G
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=nfbellis@uab.edu
+./STARindex.sh
+

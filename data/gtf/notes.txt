@@ -1,0 +1,16 @@
+genes.gtf downloaded from NBCI standard R64 yeast genome.
+
+due to multiple RDN37 genes overlapping with the RDN18,25,58 etc htseq wont call the maps to rDNA. 
+To fix this I deleted these lines at these line numbers:
+17843:   	XII	rRNA	exon	451786	455181	.	-	.	exon_number "3"; gene_id "RDN37-1"; gene_name "RDN37-1"; seqedit "false"; transcript_id "RDN37-1"; transcript_name "RDN37-1"; tss_id "TSS5511";
+17857:		XII	rRNA	exon	455414	455571	.	-	.	exon_number "2"; gene_id "RDN37-1"; gene_name "RDN37-1"; seqedit "false"; transcript_id "RDN37-1"; transcript_name "RDN37-1"; tss_id "TSS5511";
+17866:		XII	rRNA	exon	455933	457732	.	-	.	exon_number "1"; gene_id "RDN37-1"; gene_name "RDN37-1"; seqedit "false"; transcript_id "RDN37-1"; transcript_name "RDN37-1"; tss_id "TSS5511"; "YLR154W-F"; gene_name "
+17869:		XII	rRNA	exon	460923	464318	.	-	.	exon_number "3"; gene_id "RDN37-2"; gene_name "RDN37-2"; seqedit "false"; transcript_id "RDN37-2"; transcript_name "RDN37-2"; tss_id "TSS4669";
+17876:		XII	rRNA	exon	464551	464708	.	-	.	exon_number "2"; gene_id "RDN37-2"; gene_name "RDN37-2"; seqedit "false"; transcript_id "RDN37-2"; transcript_name "RDN37-2"; tss_id "TSS4669";
+17878:		XII	rRNA	exon	465070	466869	.	-	.	exon_number "1"; gene_id "RDN37-2"; gene_name "RDN37-2"; seqedit "false"; transcript_id "RDN37-2"; transcript_name "RDN37-2"; tss_id "TSS4669";
+
+added these lines:
+XII	rRNA	exon	451575	451786	.	-	.	exon_number "1"; gene_id "ETS2-1"; gene_name "ETS2-1"; seqedit "false"; transcript_id "ETS2-1"; transcript_name "ETS2-1";
+XII	rRNA	exon	455182	455413	.	-	.	exon_number "1"; gene_id "ITS2-1"; gene_name "ITS2-1"; seqedit "false"; transcript_id "ITS2-1"; transcript_name "ITS2-1";
+XII	rRNA	exon	455572	455932	.	-	.	exon_number "1"; gene_id "ITS1-1"; gene_name "ITS1-1"; seqedit "false"; transcript_id "ITS1-1"; transcript_name "ITS1-1";
+XII	rRNA	exon	457733	458432	.	-	.	exon_number "1"; gene_id "ETS1-1"; gene_name "ETS1-1"; seqedit "false"; transcript_id "ETS1-1"; transcript_name "ETS1-1";
