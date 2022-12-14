@@ -1,6 +1,5 @@
 #!/bin/bash
 
-rm -r fqtctemp
-rm -r ca3temp
-rm -r ca5temp
-rm -r mapped_reads
+rm -r output/fqtctemp
+rm -r output/ca3temp
+rm -r output/ca5temp

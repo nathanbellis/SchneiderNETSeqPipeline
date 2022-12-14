@@ -6,20 +6,6 @@ samples:
         SRR13733835: data/samples/SRR13733835.fastq
         SRR13733836: data/samples/SRR13733836.fastq
 
-condition:
-        - wildtype
-        - mutant
-
-wildtype:
-        SRR13733831: data/samples/SRR13733831.fastq
-        SRR13733832: data/samples/SRR13733832.fastq
-        SRR13733833: data/samples/SRR13733833.fastq
-
-mutant:
-        SRR13733834: data/samples/SRR13733834.fastq
-        SRR13733835: data/samples/SRR13733835.fastq
-        SRR13733836: data/samples/SRR13733836.fastq
-
 strand:
         - plus
         - minus 

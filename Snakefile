@@ -2,54 +2,35 @@ configfile: "config.yaml"
 
 rule all:
 	input:
-		expand("sorted_reads/{sample}sorted.bam.bai", sample=config["samples"]),
-		expand("rDNAcounts/{sample}plus.bed", sample=config["samples"]),
-		expand("rDNAcounts/{sample}minus.bed", sample=config["samples"]),
-		expand("htseq/{sample}counts.txt", sample=config["samples"]),
-		expand("fastqcreports/{sample}_fastqc.html", sample=config["samples"]),
-		expand("fastqcreports/{sample}fqt_fastqc.html", sample=config["samples"]),
-		expand("fastqcreports/{sample}ca3_fastqc.html", sample=config["samples"]),
-		expand("fastqcreports/{sample}ca5_fastqc.html", sample=config["samples"])
-
-#rule all:
-#	input:
-#		"rDNAcounts/SRR13733831plus.bed",
-#		"rDNAcounts/SRR13733831minus.bed",
-#		"rDNAcounts/SRR13733832plus.bed",
-#		"rDNAcounts/SRR13733832minus.bed",
-#		"htseq/SRR13733831counts.txt",
-#		"htseq/SRR13733832counts.txt",
-#		"sorted_reads/SRR13733831sorted.bam.bai",
-#		"sorted_reads/SRR13733832sorted.bam.bai",
-#		"fastqcreports/SRR13733831_fastqc.html",
-#		#"fastqcreports/SRR13733831fqt_fastqc.html",
-#		"fastqcreports/SRR13733831ca3_fastqc.html",
-#		"fastqcreports/SRR13733831ca5_fastqc.html",
-#		"fastqcreports/SRR13733832_fastqc.html",
-#                #"fastqcreports/SRR13733831fqt_fastqc.html",
-#               "fastqcreports/SRR13733832ca3_fastqc.html",
-#		"fastqcreports/SRR13733832ca5_fastqc.html"
+		expand("output/sorted_reads/{sample}sorted.bam.bai", sample=config["samples"]),
+		expand("output/rDNAcounts/{sample}plus.bed", sample=config["samples"]),
+		expand("output/rDNAcounts/{sample}minus.bed", sample=config["samples"]),
+		expand("output/htseq/{sample}counts.txt", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}fqt_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}ca3_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}ca5_fastqc.html", sample=config["samples"])
 
 rule fqtrim_collapse:
 	input:
 		"data/samples/{sample}.fastq"
 	output:
-		temp("fqtctemp/{sample}fqt.fastq")
+		temp("output/fqtctemp/{sample}fqt.fastq")
 	params:
 		prefix="{sample}",
-		folder="fqtctemp"
+		folder="output/fqtctemp"
 	shell:
 		"""
 		module load fqtrim
               	fqtrim -C -o fastq --outdir {params.folder} {input}
-		mv fqtctemp/{params.prefix}.fastq fqtctemp/{params.prefix}fqt.fastq
+		mv output/fqtctemp/{params.prefix}.fastq output/fqtctemp/{params.prefix}fqt.fastq
               	"""
 
-rule cutadapt_3:
+rule cutadapt_5:
 	input:
-		"fqtctemp/{sample}fqt.fastq"
+		"output/fqtctemp/{sample}fqt.fastq"
 	output:
-		temp("ca3temp/{sample}ca3.fastq")
+		temp("output/ca5temp/{sample}ca5.fastq")
 	threads:
 		8
 	shell:
@@ -58,11 +39,11 @@ rule cutadapt_3:
 		cutadapt -g AGNNNNNNNNTG --no-indels -j {threads} -o {output} {input}
 		"""
 
-rule cutadapt_5:
+rule cutadapt_3_1:
 	input:
-		"ca3temp/{sample}ca3.fastq"
+		"output/ca5temp/{sample}ca5.fastq"
 	output:
-		temp("ca5temp/{sample}ca5.fastq")
+		temp("output/ca3temp/{sample}ca31.fastq")
 	threads:
 		8
 	shell:
@@ -71,15 +52,28 @@ rule cutadapt_5:
 		cutadapt -a CTGTAGGCACCAT -j {threads} --no-indels -e 0.10 -m 12 -o {output} {input}
 		"""
 
+rule cutadapt_3_2:
+        input:
+                "output/ca3temp/{sample}ca31.fastq"
+        output:
+                temp("output/ca3temp/{sample}ca3.fastq")
+        threads:
+                8
+        shell:
+                """
+                module load cutadapt
+                cutadapt -a TAGGCACCATCAA -j {threads} --no-indels -e 0.10 -m 12 -o {output} {input}
+                """
+
 rule fastqc_original:
 	input:
 		"data/samples/{sample}.fastq"
 		
 	output:	
-		zip="fastqcreports/{sample}_fastqc.zip",
-		html="fastqcreports/{sample}_fastqc.html"
+		zip="output/fastqcreports/{sample}_fastqc.zip",
+		html="output/fastqcreports/{sample}_fastqc.html"
 	params:
-		path ="fastqcreports/"
+		path ="output/fastqcreports/"
 	shell:
 		"""
 		module load FastQC
@@ -88,12 +82,12 @@ rule fastqc_original:
 		
 rule fastqc_fqt:
 	input:
-	    "fqtctemp/{sample}.fastq"
+	    "output/fqtctemp/{sample}.fastq"
 	output:	
-		zip="fastqcreports/{sample}_fastqc.zip",
-		html="fastqcreports/{sample}_fastqc.html"
+		zip="output/fastqcreports/{sample}_fastqc.zip",
+		html="output/fastqcreports/{sample}_fastqc.html"
 	params:
-		path ="fastqcreports/"
+		path ="output/fastqcreports/"
 	shell:
 		"""
 		module load FastQC
@@ -102,13 +96,13 @@ rule fastqc_fqt:
 
 rule fastqc_ca3:
 	input:
-		"ca3temp/{sample}.fastq"
+		"output/ca3temp/{sample}.fastq"
 		
 	output:	
-		zip="fastqcreports/{sample}_fastqc.zip",
-		html="fastqcreports/{sample}_fastqc.html"
+		zip="output/fastqcreports/{sample}_fastqc.zip",
+		html="output/fastqcreports/{sample}_fastqc.html"
 	params:
-		path ="fastqcreports/"
+		path ="output/fastqcreports/"
 	shell:
 		"""
 		module load FastQC
@@ -117,13 +111,13 @@ rule fastqc_ca3:
 		
 rule fastqc_ca5:
 	input:
-		"ca5temp/{sample}.fastq"
+		"output/ca5temp/{sample}.fastq"
 		
 	output:	
-		zip="fastqcreports/{sample}_fastqc.zip",
-		html="fastqcreports/{sample}_fastqc.html"
+		zip="output/fastqcreports/{sample}_fastqc.zip",
+		html="output/fastqcreports/{sample}_fastqc.html"
 	params:
-		path ="fastqcreports/"
+		path ="output/fastqcreports/"
 	shell:
 		"""
 		module load FastQC
@@ -132,16 +126,16 @@ rule fastqc_ca5:
 
 rule star_align:
 	input:
-		fastq="ca5temp/{sample}ca5.fastq"
+		fastq="output/ca3temp/{sample}ca3.fastq"
 	params:
 		starfolder="data/ref/",
-		prefix="mapped_reads/{sample}"
+		prefix="output/STAR_output/{sample}"
 	output:
-		bam="mapped_reads/{sample}Aligned.sortedByCoord.out.bam",
-		lfinal="mapped_reads/{sample}Log.final.out",
-		lprog="mapped_reads/{sample}Log.progress.out",
-		lout="mapped_reads/{sample}Log.out",
-		lsj="mapped_reads/{sample}SJ.out.tab"
+		bam="output/STAR_output/{sample}Aligned.sortedByCoord.out.bam",
+		lfinal="output/STAR_output/{sample}Log.final.out",
+		lprog="output/STAR_output/{sample}Log.progress.out",
+		lout="output/STAR_output/{sample}Log.out",
+		lsj="output/STAR_output/{sample}SJ.out.tab"
 	threads:
 		8
 	shell:	
@@ -163,32 +157,19 @@ rule star_align:
 
 rule move_bam:
 	input:
-		"mapped_reads/{sample}Aligned.sortedByCoord.out.bam"
+		"output/STAR_output/{sample}Aligned.sortedByCoord.out.bam"
 	output:
-		"sorted_reads/{sample}sorted.bam"
+		"output/sorted_reads/{sample}sorted.bam"
 	shell:
 		"""
 		mv {input} {output}
-		"""
-
-#rule samtools_sort:
-#	input:
-#		"mapped_reads/{sample}Aligned.out.bam"
-#	output:
-#		"sorted_reads/{sample}sorted.bam"
-#	threads:
-#		8
-#	shell:
-#		"""
-#		module load SAMtools
-#		samtools sort --threads {threads} -o {output} {input}
-#		"""
+		""
 
 rule samtools_index:
 	input:
-		"sorted_reads/{sample}sorted.bam"
+		"output/sorted_reads/{sample}sorted.bam"
 	output:
-		"sorted_reads/{sample}sorted.bam.bai"
+		"output/sorted_reads/{sample}sorted.bam.bai"
 	threads:
 		8
 	shell:
@@ -199,9 +180,9 @@ rule samtools_index:
 
 rule htseq_gene_counts:
 	input:
-		"sorted_reads/{sample}sorted.bam"
+		"output/sorted_reads/{sample}sorted.bam"
 	output:
-		"htseq/{sample}counts.txt"
+		"output/htseq/{sample}counts.txt"
 	shell:
 		"""
 		module load HTSeq
@@ -211,9 +192,9 @@ rule htseq_gene_counts:
 
 rule bedtools_gc_plus:
 	input:
-		"sorted_reads/{sample}sorted.bam"
+		"output/sorted_reads/{sample}sorted.bam"
 	output:
-		"counts/{sample}plus.bed"
+		"output/counts/{sample}plus.bed"
 	shell:
 		"""
 		module load BEDTools
@@ -222,9 +203,9 @@ rule bedtools_gc_plus:
 
 rule bedtools_gc_minus:
 	input:
-		"sorted_reads/{sample}sorted.bam"
+		"output/sorted_reads/{sample}sorted.bam"
 	output:
-		"counts/{sample}minus.bed"
+		"output/counts/{sample}minus.bed"
 	shell:
 		"""
 		module load BEDTools
@@ -233,49 +214,10 @@ rule bedtools_gc_minus:
 
 rule awk_rDNA_trim:
 	input:
-		"counts/{sample}.bed"
+		"output/counts/{sample}.bed"
 	output:
-		"rDNAcounts/{sample}.bed"
+		"output/rDNAcounts/{sample}.bed"
 	shell:
 		"""
 		awk '($1 == "XII" && $2 >= 451575 && $2 < 458433)' {input} > {output}
 		"""
-
-#rule group_stats_wt_plus:
-#	input:
-#		bedlist=expand("rDNAcounts/{sample}plus.bed", sample=config["wildtype"]),
-#	output:
-#		"tables/WTplus.csv"
-#	params:
-#		norm="raw",
-#		name="WT"
-#	conda:
-#        	"envs/SM.NETseq.yaml"
-#	script:
-#		"scripts/groupstats.r"
-
-#rule group_stats_mut:
-#	input:
-#		expand("rDNAcounts/{sample}{strand}.bed", sample=config["mutant"], strand=config["strand"]),
-#	output:
-#		"tables/mutant.csv"
-#	script:
-#		"scripts/groupstats.r"
-
-
-#rule compare_groups:
-#	input:
-#		wildtype="tables/wildtype.csv",
-#		mutant="tables/mutant.csv"
-#	output:
-#		"tables/wt_v_mut.csv"
-#	script:
-#		"scripts/comparegroups.r"
-
-#rule rDNA_plot:
-#	input:
-#
-#	output:
-#
-#	script:
-#		scripts/rDNAplot.r

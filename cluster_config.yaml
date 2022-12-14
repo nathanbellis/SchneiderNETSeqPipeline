@@ -6,10 +6,13 @@ __default__:
         ntasks: 1 #Request n cores be allocated per node
         cpus-per-task: 1
         mem-per-cpu: 4G
-        output: smtest.out
-        error: smtest.err
+        output: pipeline.out
+        error: pipeline.err
 
-cutadapt_3:
+cutadapt_3_1:
+        cpus-per-task: 8
+
+cutadpat_3_2:
         cpus-per-task: 8
 
 cutadapt_5:
