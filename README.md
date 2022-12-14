@@ -199,7 +199,7 @@ executable. For this use the command: `chmod +x filename.sh`
     into the linux commands `&`, `nohup`, or `tmux`, which all provide ways of 
     running snakemake in the background or even when you are logged out.
     
-- **STEP 8*: <br>
+- **STEP 8**: <br>
     **Copy the output file** <br>
     The pipeline will put all resulting files into a folder labeled output. When
     the full pipeline is run and there are no more jobs running, copy the output 
