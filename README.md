@@ -208,6 +208,309 @@ executable. For this use the command: `chmod +x filename.sh`
     moved and you are satisfied with the results, you can then delete the 
     main folder from scratch keeping the scratch space clean.
 
+## Step by step breakdown
+
+1. **rule all** <br>
+    ```
+    rule all:
+	input:
+		expand("output/sorted_reads/{sample}sorted.bam.bai", sample=config["samples"]),
+		expand("output/rDNAcounts/{sample}plus.bed", sample=config["samples"]),
+		expand("output/rDNAcounts/{sample}minus.bed", sample=config["samples"]),
+		expand("output/htseq/{sample}counts.txt", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}fqt_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}ca3_fastqc.html", sample=config["samples"]),
+		expand("output/fastqcreports/{sample}ca5_fastqc.html", sample=config["samples"])
+	```
+    This rule tells snakemake what files should be created at the end of the 
+    pipeline. It then backtracks and works out what rules it needs to run based
+    on matching input and output. You want to make sure that all files that 
+    all files that have a terminal endpoint are included in this rule. For 
+    example the first rule points to the {sample}sorted.bam.bai. No other rule 
+    uses this bai file so I need to tell snakemake to make it. However you will
+    see I don't need to call the .bam file because it's creation and use is 
+    implicit as a necessary step to created the .bed files.
     
+2. **rule fqtrim_collapse** <br>
+    ```
+    rule fqtrim_collapse:
+    	input:
+    		"data/samples/{sample}.fastq"
+    	output:
+    		temp("output/fqtctemp/{sample}fqt.fastq")
+    	params:
+    		prefix="{sample}",
+    		folder="output/fqtctemp"
+    	shell:
+    		"""
+    		module load fqtrim
+                  	fqtrim -C -o fastq --outdir {params.folder} {input}
+    		mv output/fqtctemp/{params.prefix}.fastq output/fqtctemp/{params.prefix}fqt.fastq
+                  	"""
+    ```
+    This rule works on the original fastq files to collapse duplicate reads due 
+    to PCR. It relies on 5' adapters with UMI so it must be done before they are
+    removed. -C is the parameter to indicate collapse. This is mentioned in the 
+    running the pipeline, but the -C command reads the entire file into memory
+    so you need to request slightly more memory than your largest file via 
+    SLURM <br>
+    [fqtrim documentation](https://ccb.jhu.edu/software/fqtrim/)
+4. **rule cutadapt_5** <br>
+    ```
+    rule cutadapt_5:
+	input:
+		"output/fqtctemp/{sample}fqt.fastq"
+	output:
+		temp("output/ca5temp/{sample}ca5.fastq")
+	threads:
+		8
+	shell:
+		"""
+		module load cutadapt
+		cutadapt -g AGNNNNNNNNTG --no-indels -j {threads} -o {output} {input}
+		"""
+    ```
+    This rule trims the 5' adapter according to the sequence AGNNNNNNNNTG, where 
+    N is any nucleotide. -g indicates 5' adapter, and --no-indels means when 
+    matching no insertions or deletions will be allow. Unlike fqtrim cutadapt 
+    can be multithreaded to speed up performance so I have told cutadapt to use
+    8 cores, this must also be requested in the SLURM request via the 
+    cluster_config.yaml file or else it will not multithread. This applies to
+    all other rules that use multithreading as well. <br>
+    [cutadapt documentation](https://cutadapt.readthedocs.io/en/stable/guide.html)
+    
+5. **rule cutadapt_3_1** <br>
+```
+rule cutadapt_3_1:
+	input:
+		"output/ca5temp/{sample}ca5.fastq"
+	output:
+		temp("output/ca3temp/{sample}ca31.fastq")
+	threads:
+		8
+	shell:
+		"""
+		module load cutadapt
+		cutadapt -a CTGTAGGCACCAT -j {threads} --no-indels -e 0.10 -m 12 -o {output} {input}
+		"""
+```
+    This rule is similar to cutadapt_5 except it trims the 3' adapter. The 
+    sequence for this is CTGTAGGCACCAT. If the 3' adapter sequence changes, this 
+    will need to be changed. Like the previous step --no-indels is used. -e is 
+    the error rate. -m 12 is the minimum read length, meaning if a sequence is 
+    trimmed to shorter than 12 nts it is discarded.
+6. **rule cutadapt_3_2** <br>
+```
+rule cutadapt_3_2:
+        input:
+                "output/ca3temp/{sample}ca31.fastq"
+        output:
+                temp("output/ca3temp/{sample}ca3.fastq")
+        threads:
+                8
+        shell:
+                """
+                module load cutadapt
+                cutadapt -a TAGGCACCATCAA -j {threads} --no-indels -e 0.10 -m 12 -o {output} {input}
+                """
+```
+    This is the same rule and settings as the step above however it runs a 
+    second 3' trim on the sequence minus the first two nts. The reason for this 
+    is that the 5' adapter ends in NTG so occasionally when the 5' adapter is 
+    trimmed it will also remove the beginning of the 3' adapter 
+    "**CTG**TAGGCACCAT" if the read is just adapters. This means that the 
+    subsequent 3' trimming will not recognize the 5' adapter. This step is not 
+    necessary but it does help clean up some off target reads.
+
+7. **rule fastqc_original** <br>
+```
+rule fastqc_original:
+	input:
+		"data/samples/{sample}.fastq"
+		
+	output:	
+		zip="output/fastqcreports/{sample}_fastqc.zip",
+		html="output/fastqcreports/{sample}_fastqc.html"
+	params:
+		path ="output/fastqcreports/"
+	shell:
+		"""
+		module load FastQC
+		fastqc -o {params.path} {input}
+		"""
+```
+    This runs a fastqc command on the original fastqs. This is a helpful tool 
+    for gauging the quality of your initial reads. <br>
+    [fastqc documentation](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+    
+8. **rule fastqc_fqt** <br>
+    This runs the same rule as fastqc_original but on the fastq after the fqtrim
+    -C rule. It is helpful to have the fastqc's to track the changes being made
+    to the fastq before aligning.
+    
+9. **rule fastqc_ca5** <br>
+    This runs the same rule as fastqc_original but on the fastq after the 
+    cutadapt_5 rule It is helpful to have the fastqc's to track the changes 
+    being made to the fastq before aligning.
+10. **rule fastqc_ca3** <br>
+    This runs the same rule as fastqc_original but on the fastq after the 
+    cutadapt_3_2 rule It is helpful to have the fastqc's to track the changes 
+    being made to the fastq before aligning.
+11. **rule star_align** <br>
+```
+    rule star_align:
+	input:
+		fastq="output/ca3temp/{sample}ca3.fastq"
+	params:
+		starfolder="data/ref/",
+		prefix="output/STAR_output/{sample}"
+	output:
+		bam="output/STAR_output/{sample}Aligned.sortedByCoord.out.bam",
+		lfinal="output/STAR_output/{sample}Log.final.out",
+		lprog="output/STAR_output/{sample}Log.progress.out",
+		lout="output/STAR_output/{sample}Log.out",
+		lsj="output/STAR_output/{sample}SJ.out.tab"
+	threads:
+		8
+	shell:	
+		"""
+		module load STAR
+		STAR --runThreadN {threads} \
+		--genomeDir {params.starfolder} \
+		--runMode alignReads \
+		--limitBAMsortRAM 40000000000 \
+		--alignIntronMax 1 \
+		--outFilterMultimapNmax 20 \
+		--outFilterMismatchNoverLmax 0.05 \
+		--outFilterScoreMinOverLread 0 \
+		--outFilterMatchNminOverLread 0 \
+		--readFilesIn {input} \
+		--outFileNamePrefix {params.prefix} \
+		--outSAMtype BAM SortedByCoordinate
+		"""
+```
+    This is the alignment step. STAR aligner is used to map reads to the 
+    yeast genome. The genome file parameter is the starfolder in params:. This 
+    would need to be changed if you planned on using a different genome. There 
+    are many parameters all of which are explained in the STAR documentation.
+    [STAR documentation](https://physiology.med.cornell.edu/faculty/skrabanek/lab/angsd/lecture_notes/STARmanual.pdf)
+    
+12. **rule move_bam** <br>
+```
+rule move_bam:
+	input:
+		"output/STAR_output/{sample}Aligned.sortedByCoord.out.bam"
+	output:
+		"output/sorted_reads/{sample}sorted.bam"
+	shell:
+		"""
+		mv {input} {output}
+		""
+```
+    This step simply moves the bam file output by STAR to a new folder for less
+    clutter.
+13. **rule samtools_index** <br>
+```
+    rule samtools_index:
+	input:
+		"output/sorted_reads/{sample}sorted.bam"
+	output:
+		"output/sorted_reads/{sample}sorted.bam.bai"
+	threads:
+		8
+	shell:
+		"""
+		module load SAMtools
+		samtools index -@ {threads} {input}
+		"""
+```
+    This step creates an index file for the bam file created by STAR. It is not
+    necessary for any downstream rules in this pipeline, however it is necessary
+    for many tools that use .bam files. bam files must be sorted prior to 
+    indexing, however STAR can sort as it aligns which is why there is not a 
+    separate samtools_sort step. While not a major part of the pipeline, I have 
+    included documentation for both samtools and an overview of .bam and .sam 
+    file format. This is useful if you want to access the quality of the 
+    alignment at a single read level. <br>
+    [samtools documentation](http://www.htslib.org/doc/) <br>
+    [sam/bam file format](https://samtools.github.io/hts-specs/SAMv1.pdf) <br>
+14. **rule htseq_gene_counts** <br>
+```
+rule htseq_gene_counts:
+	input:
+		"output/sorted_reads/{sample}sorted.bam"
+	output:
+		"output/htseq/{sample}counts.txt"
+	shell:
+		"""
+		module load HTSeq
+		htseq-count -s reverse {input} ./data/gtf/genes.gtf > {output}
+		"""
+```
+    This step creates gene counts for your aligned reads as if you were doing
+    mRNA seq. This will not be a heavily used step for analysis but I find it's 
+    helpful data for quality control. For good Pol I NET-seq reads, the vast 
+    majority of the reads should be coming from rRNA regions (25S, 18S, 5.8S,
+    ETS1/2, ITS1/2) if there are alot of protein coding genes or if the ITS and
+    ETS regions have low reads this could be an indication of poor IP. A helpful
+    command for looking at these reads is `sort -nrk 2 file.counts | less` which
+    sorts the counts by highest value.
+15. **rule bedtools_gc_plus** <br> 
+```
+rule bedtools_gc_plus:
+	input:
+		"output/sorted_reads/{sample}sorted.bam"
+	output:
+		"output/counts/{sample}plus.bed"
+	shell:
+		"""
+		module load BEDTools
+		bedtools genomecov -d -5 -strand + -ibam {input} > {output}
+		"""
+```
+    This rule creads a .bed file that counts where the 5' end is at an individual 
+    nucleotide leve over the entire genome, set by the -5 parameter. This rule 
+    specifically runs for the plus strand. <br>
+    [bedtools genomecov documentation](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html)
+
+16. **rule bedtools_gc_minus** <br>
+```
+rule bedtools_gc_plus:
+	input:
+		"output/sorted_reads/{sample}sorted.bam"
+	output:
+		"output/counts/{sample}plus.bed"
+	shell:
+		"""
+		module load BEDTools
+		bedtools genomecov -d -5 -strand + -ibam {input} > {output}
+		"""
+```
+    This rule is the exact same as above except the + is change to a - for the 
+    minus strand.
+    
+17. **rule awk_rDNA_trim** <br>
+```
+rule awk_rDNA_trim:
+	input:
+		"output/counts/{sample}.bed"
+	output:
+		"output/rDNAcounts/{sample}.bed"
+	shell:
+		"""
+		awk '($1 == "XII" && $2 >= 451575 && $2 < 458433)' {input} > {output}
+		"""
+```
+    This rule trims the bed files to just the rDNA region. The .bed file for the 
+    entire genome is relatively large and quite unwieldy in terms of data so 
+    this step trims the data to just the region we are interested (Chromosome 
+    XII from position 451575 to 458433) making it easier to import for 
+    downstream analysis on R, which can be done on a local computer. This step 
+    can also be done on R from the full .bed files, which are also included in 
+    the final output folder. This step just captures the transcribed region so 
+    if you want the NTS reads use the full .bed file and trim in R or change 
+    these parameters to the coordinates you want.
+       
 
 
