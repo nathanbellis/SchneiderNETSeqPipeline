@@ -70,7 +70,7 @@ To begin, download the folder to your user data storage in Cheaha.
 To do this you can either download the ZIP file from this page or with the 
 command <br> `wget https://github.com/nathanbellis/SchneiderNETSeqPipeline/archive/refs/heads/main.zip` <br>
 from there you can unzip the zipfile with `unzip main.zip`
-Sinceall of our samples are done in *S. cerevisiae*, you should only need to 
+Since all of our samples are done in *S. cerevisiae*, you should only need to 
 index the genome once. The yeast genome is small enough it should handle copying 
 and pasting to and from scratch pretty well.
 
