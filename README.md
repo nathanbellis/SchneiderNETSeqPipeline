@@ -66,10 +66,13 @@ There is one directory called **data** with three directories inside:
 
 ## Initial Set Up
 
-To begin, download the folder to your user data storage in Cheaha. WGET??. Since
-all of our samples are done in *S. cerevisiae*, you should only need to align the
-genome once. The yeast genome is small enough it should handle copying and pasting
-to and from scratch pretty well.
+To begin, download the folder to your user data storage in Cheaha. 
+To do this you can either download the ZIP file from this page or with the 
+command <br> `wget https://github.com/nathanbellis/SchneiderNETSeqPipeline/archive/refs/heads/main.zip` <br>
+from there you can unzip the zipfile with `unzip main.zip`
+Sinceall of our samples are done in *S. cerevisiae*, you should only need to 
+index the genome once. The yeast genome is small enough it should handle copying 
+and pasting to and from scratch pretty well.
 
 ### Indexing the Genome
 
