@@ -163,7 +163,7 @@ rule move_bam:
 	shell:
 		"""
 		mv {input} {output}
-		""
+		"""
 
 rule samtools_index:
 	input:
