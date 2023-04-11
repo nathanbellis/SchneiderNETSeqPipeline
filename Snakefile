@@ -219,5 +219,5 @@ rule awk_rDNA_trim:
 		"output/rDNAcounts/{sample}.bed"
 	shell:
 		"""
-		awk '($1 == "XII" && $2 >= 451575 && $2 < 458433)' {input} > {output}
+		awk '($1 == "XII" && $2 >= 458433 && $2 <= 467569)' {input} > {output}
 		"""
